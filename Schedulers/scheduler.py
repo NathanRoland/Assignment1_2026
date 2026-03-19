@@ -33,4 +33,5 @@ schedulers = {
     "cosine":  cosine_scheduler,
     "step":    step_scheduler,
     "lambda":  lambda_scheduler,
+    "none":    lambda_scheduler,
 }
