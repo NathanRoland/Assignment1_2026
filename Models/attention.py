@@ -35,7 +35,11 @@ class CQAttention(nn.Module):
 
         S1 = F.softmax(mask_logits(S, qmask), dim=2)
         S2 = F.softmax(mask_logits(S, cmask), dim=1)
-        A = torch.bmm(Q, S1)
+        A = torch.bmm(S1, Q)
+        #The arguments are in the wrong order. After the transpose on line 24:
+        # Q has shape [B, Lq, C]
+        # S1 has shape [B, Lc, Lq]
+        # torch.bmm(Q, S1) tries to multiply [B, Lq, C] × [B, Lc, Lq], which requires C == Lc — almost certainly not true. This will either crash at runtime or silently produce garbage if C happens to equal Lc. 
         B = torch.bmm(torch.bmm(S1, S2.transpose(1, 2)), C)
 
         out = torch.cat([C, A, C * A, C * B], dim=2)  # [B, Lc, 4C]

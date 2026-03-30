@@ -62,7 +62,8 @@ class QANet(nn.Module):
         cmask = (Cwid == 0)  # True means PAD
         qmask = (Qwid == 0)
 
-        Cw, Cc = self.char_emb(Cwid), self.word_emb(Ccid)
+        Cw, Cc = self.word_emb(Cwid), self.char_emb(Ccid)
+        #context) is swapped: Cwid (word IDs) is fed into char_emb, and Ccid (char IDs) is fed into word_emb. These two embedding tables have different vocabulary sizes, so this would crash at runtime or silently produce completely wrong embeddings.
         Qw, Qc = self.word_emb(Qwid), self.char_emb(Qcid)
 
         C, Q = self.emb(Cc, Cw), self.emb(Qc, Qw)
@@ -72,7 +73,8 @@ class QANet(nn.Module):
         Ce = self.c_emb_enc(C, cmask)
         Qe = self.q_emb_enc(Q, qmask)
 
-        X = self.cq_att(Ce, Qe, qmask, cmask)
+        X = self.cq_att(Ce, Qe, cmask, qmask)
+        #The CQAttention.forward signature is (C, Q, cmask, qmask) — context mask third, query mask fourth. But here qmask is passed in the cmask position and cmask in the qmask position. This means the context logits get masked with the query mask and vice versa, completely breaking the attention.
 
         M1 = self.cq_resizer(X)
         for enc in self.model_enc_blks:

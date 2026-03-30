@@ -20,7 +20,8 @@ class Pointer(nn.Module):
         self.w2 = nn.Parameter(w2)
 
     def forward(self, M1: torch.Tensor, M2: torch.Tensor, M3: torch.Tensor, mask: torch.Tensor):
-        X1 = torch.cat([M1, M2], dim=0)  # [B, 2C, L]
+        X1 = torch.cat([M1, M2], dim=1)  # [B, 2C, L]
+        #dim=0 is the batch dimension. Concatenating along it would double the batch size, producing [2B, C, L] — not [B, 2C, L] as the comment states. The very next line (X2) does the exact same operation correctly with dim=1. This is a copy-paste error where dim=1 was accidentally changed to dim=0.
         X2 = torch.cat([M1, M3], dim=1)  # [B, 2C, L]
         Y1 = torch.matmul(self.w1, X1)  # [B, L]
         Y2 = torch.matmul(self.w2, X2)  # [B, L]

@@ -25,6 +25,8 @@ class CosineAnnealingLR(LRScheduler):
     def get_lr(self):
         t = self.last_epoch
         return [
-            self.eta_min + (base_lr - self.eta_min) * (1 + math.cos(math.PI * t / self.T_max))
+            self.eta_min + 0.5 * (base_lr - self.eta_min) * (1 + math.cos(math.pi * t / self.T_max))
+            #Python's math module uses lowercase: math.pi. math.PI will raise AttributeError on every get_lr call.
+            #The formula is missing the 0.5 multiplier on the second term. This makes the initial lr_0 ramp much steeper, instead of starting at eta_min and gradually decaying to it.
             for base_lr in self.base_lrs
         ]

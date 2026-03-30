@@ -20,4 +20,5 @@ class LambdaLR(LRScheduler):
     def get_lr(self):
         t = self.last_epoch
         factor = self.lr_lambda(t)
-        return [base_lr + factor for base_lr in self.base_lrs]
+        return [base_lr * factor for base_lr in self.base_lrs]
+        #The docstring on line 8 says lr_t = base_lr * lr_lambda(t) — the lambda output is a multiplicative factor, not an additive offset. Adding it means even a lambda _: 1.0 (intended as a no-op constant schedule) would add 1.0 to every lr instead of keeping it unchanged.

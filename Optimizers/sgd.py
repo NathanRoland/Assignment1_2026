@@ -36,7 +36,8 @@ class SGD(Optimizer):
 
                 # Weight decay: equivalent to L2 regularisation
                 if wd != 0.0:
-                    grad = grad.add(p, alpha=-wd)
+                    grad = grad.add(p, alpha=wd)
+                    #Weight decay should apply to p, not grad. This is a copy-paste error where grad is incorrectly modified instead of p.
 
                 p.add_(grad, alpha=-lr)
 

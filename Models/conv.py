@@ -52,7 +52,8 @@ class Conv1d(nn.Module):
 
         # 2. Sliding window: tensor.unfold(dim, size, step) → [B, C_in, L_out, k]
         L_out = x.size(2) - self.kernel_size + 1
-        x_unf = x.unfold(1, self.kernel_size, 1)  # [B, C_in, L_out, k]
+        x_unf = x.unfold(2, self.kernel_size, 1)  # [B, C_in, L_out, k]
+        #initial produced wrong shape 
 
         # 3. Grouped multiply-accumulate
         G       = self.groups
@@ -121,7 +122,8 @@ class Conv2d(nn.Module):
             p = self.padding
             pad_h = x.new_zeros(B, C_in, p, W)
             x = torch.cat([pad_h, x, pad_h], dim=2)       # [B, C_in, H+2p, W]
-            pad_w = x.new_zeros(B, C_in, H, p)
+            pad_w = x.new_zeros(B, C_in, H + 2 * p, p)
+            #After height-padding, x is now [B, C_in, H+2p, W], but pad_w is still created using the original H. When the width torch.cat runs, the height dimension of pad_w (H) won't match x's height (H+2p), causing a shape mismatch error.
             x = torch.cat([pad_w, x, pad_w], dim=3)       # [B, C_in, H+2p, W+2p]
 
         # 2. Sliding window along height then width
@@ -172,4 +174,5 @@ class DepthwiseSeparableConv(nn.Module):
             constant_(self.pointwise_conv.bias, 0.0)
 
     def forward(self, x):
-        return self.depthwise_conv(self.pointwise_conv(x))
+        return self.pointwise_conv(self.depthwise_conv(x))
+        #Depthwise separable convolution must apply the depthwise convolution first (spatial filtering per channel), then the pointwise 1×1 convolution (channel mixing). Here they are reversed — the pointwise conv runs first, then depthwise. This defeats the entire purpose of the decomposition.

@@ -22,6 +22,7 @@ class StepLR(LRScheduler):
     def get_lr(self):
         t = self.last_epoch
         return [
-            base_lr * self.gamma * (t // self.step_size)
+            base_lr * self.gamma ** (t // self.step_size)
+            #The floor division // is correct, but the comment incorrectly claims t // self.step_size is the floor of t/step_size. It's actually the integer division result, not the floor. The floor division operator is //, not /.
             for base_lr in self.base_lrs
         ]
