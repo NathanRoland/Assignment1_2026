@@ -212,8 +212,8 @@ def build_features(examples, data_type: str, out_file: str,
         context_char_idxs.append(ctx_char_idx)
         ques_idxs.append(q_idx)
         ques_char_idxs.append(q_char_idx)
-        y1s.append(example["y1s"][-1])
-        y2s.append(example["y2s"][-1])
+        y1s.append(example["y1s"][0])
+        y2s.append(example["y2s"][0])
         ids.append(example["id"])
 
     ensure_parent(out_file)

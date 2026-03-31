@@ -22,9 +22,13 @@ def step_scheduler(optimizer, args):
     )
 
 
+def _constant_factor(_step):
+    return 1.0
+
+
 def lambda_scheduler(optimizer, args):
     """LambdaLR with a constant factor of 1.0 — learning rate stays fixed."""
-    return LambdaLR(optimizer, lr_lambda=lambda _: 1.0)
+    return LambdaLR(optimizer, lr_lambda=_constant_factor)
 
 
 # ── Registry ─────────────────────────────────────────────────────────────────
@@ -33,4 +37,5 @@ schedulers = {
     "cosine":  cosine_scheduler,
     "step":    step_scheduler,
     "lambda":  lambda_scheduler,
+    "none":    lambda_scheduler,
 }
