@@ -6,7 +6,6 @@ import itertools
 import re
 import string
 from collections import Counter
-import numpy as np
 import torch
 from tqdm import tqdm
 
@@ -58,6 +57,8 @@ def squad_evaluate(eval_file, answer_dict):
         ground_truths = eval_file[key]["answers"]
         exact_match += metric_max_over_ground_truths(exact_match_score, pred, ground_truths)
         f1 += metric_max_over_ground_truths(f1_score, pred, ground_truths)
+    if total == 0.0:
+        return {"exact_match": 0.0, "f1": 0.0}
     return {"exact_match": 100.0 * exact_match / total, "f1": 100.0 * f1 / total}
 
 
@@ -90,7 +91,8 @@ def run_eval(model, dataset, eval_file, num_batches, batch_size,
 
     model.eval()
     answer_dict = {}
-    losses = []
+    weighted_loss = 0.0
+    num_examples = 0
 
     for Cwid, Ccid, Qwid, Qcid, y1, y2, ids in tqdm(
         itertools.islice(loader, batch_limit), total=total_display
@@ -102,7 +104,9 @@ def run_eval(model, dataset, eval_file, num_batches, batch_size,
 
         p1, p2 = model(Cwid, Ccid, Qwid, Qcid)
         loss = loss_fn(p1, p2, y1, y2)
-        losses.append(float(loss.item()))
+        bsz = Cwid.size(0)
+        weighted_loss += float(loss.item()) * bsz
+        num_examples += bsz
 
         yp1 = torch.argmax(p1, dim=1)
         yp2 = torch.argmax(p2, dim=1)
@@ -114,5 +118,5 @@ def run_eval(model, dataset, eval_file, num_batches, batch_size,
         answer_dict.update(answer_dict_)
 
     metrics = squad_evaluate(eval_file, answer_dict)
-    metrics["loss"] = float(np.mean(losses)) if losses else 0.0
+    metrics["loss"] = (weighted_loss / num_examples) if num_examples > 0 else 0.0
     return metrics, answer_dict

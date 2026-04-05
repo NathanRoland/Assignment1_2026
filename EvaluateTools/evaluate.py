@@ -34,7 +34,7 @@ def evaluate(
     dev_eval_json:  str   = "_data/dev_eval.json",
     save_dir:       str   = "_model",
     log_dir:        str   = "_log",
-    ckpt_name:      str   = "model.pt",
+    ckpt_name:      str   = "model_best.pt",
 
     # ── Eval settings ─────────────────────────────────────────────────────────
     batch_size:         int   = 8,
@@ -89,6 +89,11 @@ def evaluate(
 
     if loss_name not in losses:
         raise ValueError(f"Unknown loss '{loss_name}'. Available: {list(losses.keys())}")
+    if loss_name == "qa_ce":
+        raise ValueError(
+            "loss_name='qa_ce' expects raw logits, but the current pointer head outputs log-probabilities. "
+            "Use loss_name='qa_nll' unless you also change the model head."
+        )
 
     # Build a lightweight namespace so existing helpers can consume it
     args = argparse.Namespace(
@@ -130,5 +135,5 @@ def evaluate(
     with open(os.path.join(log_dir, "answers.json"), "w") as f:
         json.dump(ans, f)
 
-    print("TEST  loss {loss:.6f}  F1 {f1:.6f}  EM {exact_match:.6f}".format(**metrics))
+    print("DEV   loss {loss:.6f}  F1 {f1:.6f}  EM {exact_match:.6f}".format(**metrics))
     return {"f1": metrics["f1"], "exact_match": metrics["exact_match"], "loss": metrics["loss"]}

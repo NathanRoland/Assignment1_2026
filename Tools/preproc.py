@@ -266,6 +266,8 @@ def preprocess(
     # --- Embedding options ---
     pretrained_char: bool = False,
     fasttext: bool = False,
+    seed: int = 42,
+    build_vocab_from_dev: bool = False,
 ) -> dict:
     """Preprocess SQuAD v1.1 for QANet training.
 
@@ -312,6 +314,11 @@ def preprocess(
     fasttext:
         Use ``fasttext_file`` instead of GloVe for word embeddings
         (default False).
+    seed:
+        Random seed used for reproducible randomly initialised embeddings.
+    build_vocab_from_dev:
+        If True, include dev tokens in vocabulary/embedding construction.
+        If False (default), build vocabulary from train split only.
 
     Returns
     -------
@@ -333,6 +340,7 @@ def preprocess(
     # Create output directories
     for d in (target_dir, save_dir, log_dir):
         os.makedirs(d, exist_ok=True)
+    np.random.seed(seed)
 
     # Derive output file paths
     out = {
@@ -350,7 +358,11 @@ def preprocess(
     # Step 1 — Parse SQuAD files
     word_counter, char_counter = Counter(), Counter()
     train_examples, train_eval = process_file(train_file, "train", word_counter, char_counter)
-    dev_examples, dev_eval = process_file(dev_file, "dev", word_counter, char_counter)
+    if build_vocab_from_dev:
+        dev_examples, dev_eval = process_file(dev_file, "dev", word_counter, char_counter)
+    else:
+        # Parse dev examples without contaminating train-derived vocab counters.
+        dev_examples, dev_eval = process_file(dev_file, "dev", Counter(), Counter())
 
     # Step 2 — Build embedding matrices
     word_emb_source = fasttext_file if fasttext else glove_word_file

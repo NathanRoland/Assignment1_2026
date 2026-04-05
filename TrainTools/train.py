@@ -37,13 +37,14 @@ def train(
     save_dir:           str   = "_model",
     log_dir:            str   = "_log",
     ckpt_name:          str   = "model.pt",
+    best_ckpt_name:     str   = "model_best.pt",
 
     # ── Training loop ─────────────────────────────────────────────────────────
     batch_size:         int   = 8,
     num_steps:          int   = 60000,
     checkpoint:         int   = 200,
     val_num_batches:    int   = 150,
-    test_num_batches:   int   = 150,
+    test_num_batches:   int   = -1,
     seed:               int   = 42,
     grad_clip:          float = 5.0,
     early_stop:         int   = 10,
@@ -95,7 +96,8 @@ def train(
         history   : list[dict]  — per-checkpoint metrics
             keys: step, train_loss, train_f1, train_em,
                   dev_loss, dev_f1, dev_em, lr
-        ckpt_path : str         — absolute path to the saved checkpoint
+        ckpt_path : str         — absolute path to the latest checkpoint
+        best_ckpt_path : str    — absolute path to the best-dev checkpoint
         config    : dict        — full resolved configuration
     """
     set_seed(seed)
@@ -135,6 +137,11 @@ def train(
         raise ValueError(f"Unknown scheduler '{scheduler_name}'. Available: {list(schedulers.keys())}")
     if loss_name not in losses:
         raise ValueError(f"Unknown loss '{loss_name}'. Available: {list(losses.keys())}")
+    if loss_name == "qa_ce":
+        raise ValueError(
+            "loss_name='qa_ce' expects raw logits, but the current pointer head outputs log-probabilities. "
+            "Use loss_name='qa_nll' unless you also change the model head."
+        )
     if norm_name not in normalizations:
         raise ValueError(f"Unknown norm '{norm_name}'. Available: {list(normalizations.keys())}")
 
@@ -171,7 +178,7 @@ def train(
             use_random_batches=False,
             device=DEVICE, loss_fn=loss_fn,
         )
-        print("TEST        loss {loss:8f}  F1 {f1:8f}  EM {exact_match:8f}\n".format(**dv_metrics))
+        print("DEV         loss {loss:8f}  F1 {f1:8f}  EM {exact_match:8f}\n".format(**dv_metrics))
 
         current_lr = scheduler.get_last_lr()
         print("Learning rate:", current_lr)
@@ -190,15 +197,23 @@ def train(
         dev_f1 = dv_metrics["f1"]
         dev_em = dv_metrics["exact_match"]
 
-        if dev_f1 < best_f1 and dev_em < best_em:
+        is_better = (dev_f1 > best_f1) or (dev_f1 == best_f1 and dev_em > best_em)
+
+        if not is_better:
             patience += 1
-            if patience > early_stop:
+            if patience >= early_stop:
                 print("Early stopping triggered.")
                 break
         else:
             patience = 0
-            best_f1  = max(best_f1, dev_f1)
-            best_em  = max(best_em, dev_em)
+            best_f1  = dev_f1
+            best_em  = dev_em
+
+            # Keep a dedicated checkpoint for the best dev metrics seen so far.
+            save_checkpoint(
+                save_dir, best_ckpt_name, model, optimizer, scheduler,
+                step0 + steps_this_block, best_f1, best_em, vars(args),
+            )
 
         save_checkpoint(
             save_dir, ckpt_name, model, optimizer, scheduler,
@@ -215,5 +230,6 @@ def train(
         "best_em":   best_em,
         "history":   history,
         "ckpt_path": os.path.abspath(os.path.join(save_dir, ckpt_name)),
+        "best_ckpt_path": os.path.abspath(os.path.join(save_dir, best_ckpt_name)),
         "config":    vars(args),
     }
